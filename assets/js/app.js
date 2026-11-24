@@ -4,7 +4,7 @@ const state = {
   page: 1, pageSize: 12
 };
 const $ = id => document.getElementById(id);
-const fmtNumber = value => Number.isFinite(value) ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(value) : "—";
+const fmtNumber = value => Number.isFinite(value) ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Math.round(value)) : "—";
 const safe = value => value == null ? "" : String(value);
 const unique = values => [...new Set(values.filter(v => v !== null && v !== undefined && String(v).trim() !== ""))];
 const avg = values => values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
@@ -93,44 +93,49 @@ function groupAverage(rows, groupKey, valueKey, predicate = () => true) {
 function aggregate(rows) {
   const success = rows.filter(r => norm(r["Alasan 2"]) === "sukses");
   const failed = rows.filter(r => norm(r["Alasan 2"]) === "gagal");
-  // First outlet is identified by Kunjungan = 1; average its actual Waktu Mulai.
-  const firstOutlet = rows
-    .filter(r => Number(r.Kunjungan) === 1)
-    .map(r => timeToSeconds(r["Waktu Mulai"]))
-    .filter(v => v != null);
+
+  // Satu catatan outlet pertama per salesman per hari.
+  const firstVisitRows = rows.filter(r => Number(r.Kunjungan) === 1);
+  const firstOutletSeconds = firstVisitRows.map(r => timeToSeconds(r["Waktu Mulai"])).filter(v => v != null);
+  const firstBySales = new Map();
+  firstVisitRows.forEach(r => {
+    const sales = safe(r.Sales) || "(Kosong)";
+    const dayKey = `${safe(r.Tanggal)}|${safe(r.Day)}`;
+    if (!firstBySales.has(sales)) firstBySales.set(sales, new Map());
+    firstBySales.get(sales).set(dayKey, r);
+  });
+  const lateSales = [...firstBySales.entries()].map(([name, dayMap]) => {
+    const visits = [...dayMap.values()];
+    const times = visits.map(r => timeToSeconds(r["Waktu Mulai"])).filter(v => v != null);
+    const lateCount = visits.filter(r => norm(r["Status 1st Outlet"]) === "terlambat").length;
+    return { name, avgTime: avg(times), lateCount };
+  }).filter(x => x.lateCount > 0).sort((a,b) => b.lateCount - a.lateCount || (b.avgTime || 0) - (a.avgTime || 0));
+
   const successfulDurations = success.map(r => timeToSeconds(r.Durasi)).filter(v => v != null);
   const successfulEC = success.map(r => number(r.EC)).filter(v => v != null);
   const sku = rows.map(r => number(r["SKU/faktur"])).filter(v => v != null);
   const averageECAll = avg(rows.map(r => number(r.EC)).filter(v => v != null));
   const countCustId = rows.filter(r => safe(r.szCustId).trim() !== "").length;
-
-  // Out of Route mengikuti formula Excel: MAX(0, Average EC - Count szCustId).
   const outOfRoute = Math.max(0, (averageECAll ?? 0) - countCustId);
 
-  // Status 1st Outlet repeats on every visit row; count only the first visit per Sales.
-  const late = groupCount(
-    rows,
-    "Sales",
-    r => Number(r.Kunjungan) === 1 && norm(r["Status 1st Outlet"]) === "terlambat"
-  );
   const failedSales = groupCount(rows, "Sales", r => norm(r["Alasan 2"]) === "gagal");
   const underTwo = groupCount(rows, "Sales", r => number(r["Kurang 2 Menit"]) > 0)
     .map(item => ({ name: item.name, value: rows.filter(r => safe(r.Sales) === item.name).reduce((sum, r) => sum + (number(r["Kurang 2 Menit"]) || 0), 0) }))
     .sort((a,b)=>b.value-a.value);
   const reasons = groupCount(failed, "Alasan");
-  const effective = groupAverage(success, "Sales", "EC");
-  const pc = groupAverage(rows, "Tipe Sales", "%PC").map(x => ({ ...x, value: x.value * 100 }));
+  const effective = groupAverage(success, "Sales", "EC").map(x => ({ ...x, value: Math.round(x.value) }));
+  const pc = groupAverage(rows, "Tipe Sales", "%PC").map(x => ({ ...x, value: Math.round(x.value * 100) }));
 
   return {
     jks: countCustId,
     success: success.length,
     failed: failed.length,
-    firstOutlet: avg(firstOutlet),
+    firstOutlet: avg(firstOutletSeconds),
     duration: avg(successfulDurations),
     effectiveCall: avg(successfulEC),
     sku: avg(sku),
     outOfRoute,
-    late, failedSales, underTwo, reasons, effective, pc
+    lateSales, failedSales, underTwo, reasons, effective, pc
   };
 }
 function renderKPIs(rows) {
@@ -143,7 +148,27 @@ function renderKPIs(rows) {
   $("kpiFailed").textContent = fmtNumber(a.failed);
   $("kpiEffective").textContent = fmtNumber(a.effectiveCall);
   $("kpiSku").textContent = fmtNumber(a.sku);
+  const selectedDayCount = state.selected.day.size;
+  const useList = selectedDayCount > 1 || (selectedDayCount === 0 && state.days.length > 1);
+  if (useList) {
+    $("lateChart").hidden = true;
+    $("lateList").hidden = false;
+    renderLateList(a.lateSales);
+  } else {
+    $("lateChart").hidden = false;
+    $("lateList").hidden = true;
+    window.RouteCharts.renderLateChart(a.lateSales);
+  }
   window.RouteCharts.renderDashboardCharts(a);
+}
+function renderLateList(items) {
+  const host = $("lateList");
+  if (!items.length) {
+    host.innerHTML = `<div class="late-empty">Tidak ada salesman terlambat pada filter ini.</div>`;
+    return;
+  }
+  host.innerHTML = `<div class="late-list-head"><span>Nama Salesman</span><span>Avg 1st Outlet</span><span>Terlambat</span></div>` +
+    items.map(item => `<div class="late-list-row"><span class="late-sales-name" title="${item.name}">${item.name}</span><strong>${secondsToTime(item.avgTime)}</strong><b>${item.lateCount}×</b></div>`).join("");
 }
 function renderTableRows() {
   const query = norm($("tableSearch").value);
@@ -156,7 +181,7 @@ function renderTableRows() {
     <td>${safe(r.Day)}</td><td>${safe(r.Depo)}</td><td>${safe(r.Sales)}</td><td>${safe(r.Customer)}</td>
     <td>${safe(r["Waktu Mulai"])}</td><td>${safe(r.Durasi)}</td><td>${safe(r.Alasan)}</td>
     <td><span class="status-pill ${norm(r["Alasan 2"]) === "gagal" ? "failed" : ""}">${safe(r["Alasan 2"])}</span></td>
-    <td>${fmtNumber(number(r.EC))}</td><td>${number(r["%PC"]) == null ? "—" : (number(r["%PC"]) * 100).toFixed(1) + "%"}</td>
+    <td>${fmtNumber(number(r.EC))}</td><td>${number(r["%PC"]) == null ? "—" : Math.round(number(r["%PC"]) * 100) + "%"}</td>
   </tr>`).join("") : `<tr><td colspan="10" class="empty-cell">Tidak ada data yang cocok.</td></tr>`;
   $("rowCount").textContent = `${fmtNumber(total)} baris`;
   $("tablePageInfo").textContent = total ? `Menampilkan ${start + 1}–${Math.min(start + state.pageSize, total)} dari ${fmtNumber(total)} baris` : "Tidak ada data";
@@ -166,8 +191,17 @@ function renderTableRows() {
 function renderAll() {
   renderKPIs(state.filteredRows);
   renderTableRows();
+  $("detailSummary").textContent = `${fmtNumber(state.filteredRows.length)} baris`;
   const selectedCount = Object.values(state.selected).reduce((sum, set) => sum + set.size, 0);
   $("activeFilterNote").textContent = selectedCount ? `${selectedCount} filter aktif · ${fmtNumber(state.filteredRows.length)} baris` : "Semua data";
+}
+function setView(view) {
+  const dashboard = view === "dashboard";
+  $("dashboardView").classList.toggle("active", dashboard);
+  $("detailsView").classList.toggle("active", !dashboard);
+  document.querySelectorAll(".nav-item").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
+  if (!dashboard) renderTableRows();
+  setTimeout(() => window.dispatchEvent(new Event("resize")), 60);
 }
 function bindUI() {
   $("resetFilters").addEventListener("click", () => {
@@ -180,7 +214,18 @@ function bindUI() {
   $("prevPage").addEventListener("click", () => { state.page--; renderTableRows(); });
   $("nextPage").addEventListener("click", () => { state.page++; renderTableRows(); });
   $("refreshData").addEventListener("click", initDashboard);
-  $("mobileMenu").addEventListener("click", () => $("sidebar").classList.toggle("open"));
+  $("sidebarToggle").addEventListener("click", () => {
+    if (window.matchMedia("(max-width: 850px)").matches) $("sidebar").classList.toggle("open");
+    else document.body.classList.toggle("sidebar-hidden");
+  });
+  $("sidebarClose").addEventListener("click", () => {
+    if (window.matchMedia("(max-width: 850px)").matches) $("sidebar").classList.remove("open");
+    else document.body.classList.add("sidebar-hidden");
+  });
+  document.querySelectorAll(".nav-item").forEach(btn => btn.addEventListener("click", () => {
+    setView(btn.dataset.view);
+    if (window.matchMedia("(max-width: 850px)").matches) $("sidebar").classList.remove("open");
+  }));
 }
 async function initDashboard() {
   $("loadingScreen").classList.remove("hidden");

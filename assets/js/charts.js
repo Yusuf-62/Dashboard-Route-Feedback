@@ -43,12 +43,41 @@ function renderReason(id, rows) {
     series: [{ type: "pie", radius: ["42%", "72%"], center: ["50%", "44%"], avoidLabelOverlap: true, itemStyle: { borderColor: "#131f2a", borderWidth: 3 }, label: { color: "#dce5eb", fontSize: 9, formatter: p => p.percent > 7 ? `${p.percent}%` : "" }, data: rows.map((r, i) => ({ name: r.name, value: r.value, itemStyle: { color: chartColors[i % chartColors.length] } })) }]
   }, true);
 }
+function renderLateChart(items) {
+  const chart = getChart("lateChart");
+  if (!chart) return;
+  const sorted = [...items].sort((a,b) => (b.avgTime || 0) - (a.avgTime || 0));
+  const el = document.getElementById("lateChart");
+  el.style.height = `${Math.max(145, sorted.length * 25 + 34)}px`;
+  const option = baseOption();
+  option.grid = { left: 118, right: 55, top: 7, bottom: 7, containLabel: true };
+  option.xAxis = {
+    type: "value", min: 0,
+    axisLabel: { color: "#91a2b1", fontSize: 8, formatter: value => {
+      const h = Math.floor(value / 3600), m = Math.floor((value % 3600) / 60);
+      return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+    }},
+    axisLine: { lineStyle: { color: "#354653" } },
+    splitLine: { lineStyle: { color: "rgba(145,162,177,.12)", type: "dashed" } }
+  };
+  option.yAxis = { type: "category", inverse: true, data: sorted.map(x => x.name), axisLabel: { color: "#b7c3cc", fontSize: 9, width: 108, overflow: "truncate" }, axisLine: { show: false }, axisTick: { show: false } };
+  option.tooltip = { trigger: "axis", backgroundColor: "#1b2a36", borderColor: "#3c5263", textStyle: { color: "#edf2f6", fontSize: 10 }, formatter: p => {
+    const item = sorted[p[0].dataIndex];
+    const t = item.avgTime == null ? "—" : (() => { const n=Math.round(item.avgTime), h=Math.floor(n/3600), m=Math.floor(n%3600/60), sec=n%60; return [h,m,sec].map(v=>String(v).padStart(2,"0")).join(":"); })();
+    return `${item.name}<br/>Avg 1st Outlet: <b>${t}</b><br/>Terlambat: <b>${item.lateCount} kali</b>`;
+  }};
+  option.series = [{ type: "bar", data: sorted.map(x => x.avgTime || 0), barMaxWidth: 17, itemStyle: { color: "#d49a67", borderRadius: [0, 5, 5, 0] }, label: { show: true, position: "right", color: "#e6edf2", fontSize: 8, formatter: p => {
+    const item = sorted[p.dataIndex], n=Math.round(item.avgTime || 0), h=Math.floor(n/3600), m=Math.floor(n%3600/60), sec=n%60;
+    return `${[h,m,sec].map(v=>String(v).padStart(2,"0")).join(":")} · ${item.lateCount}x`;
+  }} }];
+  chart.setOption(option, true);
+  chart.resize();
+}
 function renderDashboardCharts(data) {
-  renderBar("lateChart", data.late.slice(0, 8), "#d49a67", true);
   renderBar("failedSalesChart", data.failedSales.slice(0, 8), "#d49a67", false);
   renderBar("underTwoChart", data.underTwo.slice(0, 8), "#79a9d8", true);
   renderReason("reasonChart", data.reasons.slice(0, 8));
-  renderBar("effectiveChart", data.effective.slice(0, 8), "#62c59b", false);
+  renderBar("effectiveChart", data.effective.slice(0, 10), "#62c59b", false);
   renderBar("pcChart", data.pc.slice(0, 10), "#b09be7", false, "%");
 }
 window.addEventListener("resize", () => Object.values(chartInstances).forEach(chart => chart.resize()));

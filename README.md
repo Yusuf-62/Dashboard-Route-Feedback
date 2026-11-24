@@ -39,3 +39,14 @@ Catatan: rumus Out of Route mengikuti interpretasi `Average EC - Count szCustId`
 - `data.js` menghapus UTF-8 BOM sebelum `JSON.parse`, karena file hasil VBA ADODB.Stream dapat memiliki BOM.
 - Library ECharts dan Lucide dimuat dari CDN.
 - Tidak ada token GitHub di frontend. Jangan pernah menaruh PAT di JavaScript/HTML/CSS.
+
+
+## Revisi layout dashboard
+
+- Sidebar filter dapat disembunyikan/dimunculkan dengan tombol panel di header.
+- Menu Dashboard Utama dan Rincian Kunjungan berada di sidebar.
+- Pada desktop, overview menggunakan layout ringkas satu layar; pada layar kecil halaman tetap dapat discroll.
+- Jika satu hari dipilih, salesman terlambat ditampilkan sebagai horizontal bar chart.
+- Jika lebih dari satu hari dipilih (atau seluruh hari tersedia), panel keterlambatan berubah menjadi daftar nama salesman, rata-rata Waktu Mulai kunjungan pertama, dan jumlah hari terlambat.
+- Grafik Average EC per Sales dan Average PC per Tipe Sales menggunakan angka bulat.
+- Tabel rincian kunjungan dipindahkan ke tampilan terpisah.
