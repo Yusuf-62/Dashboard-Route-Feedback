@@ -50,3 +50,11 @@ Catatan: rumus Out of Route mengikuti interpretasi `Average EC - Count szCustId`
 - Jika lebih dari satu hari dipilih (atau seluruh hari tersedia), panel keterlambatan berubah menjadi daftar nama salesman, rata-rata Waktu Mulai kunjungan pertama, dan jumlah hari terlambat.
 - Grafik Average EC per Sales dan Average PC per Tipe Sales menggunakan angka bulat.
 - Tabel rincian kunjungan dipindahkan ke tampilan terpisah.
+
+
+## Perbaikan tambahan
+- Header atas dihapus; navigasi tetap melalui sidebar.
+- Perhitungan waktu outlet pertama menggunakan Waktu Mulai paling awal per Sales dan Tanggal.
+- Status terlambat dihitung satu kali per Sales per hari walaupun nilainya berulang pada baris kunjungan.
+- Grafik satu hari memakai horizontal bar chart; mode multi-hari memakai daftar.
+- Grafik bawah diubah menjadi dua kolom agar label dan batang lebih mudah dibaca.

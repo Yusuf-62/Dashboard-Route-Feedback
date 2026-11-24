@@ -22,13 +22,15 @@ function shortLabel(value, max = 16) { return value && value.length > max ? valu
 function renderBar(id, rows, color = chartColors[0], horizontal = false, suffix = "") {
   const chart = getChart(id); if (!chart) return;
   const option = baseOption();
-  option.grid = horizontal ? { left: 115, right: 30, top: 15, bottom: 20, containLabel: true } : { left: 38, right: 15, top: 20, bottom: 68, containLabel: true };
+  option.grid = horizontal ? { left: 112, right: 30, top: 16, bottom: 18, containLabel: true } : { left: 42, right: 18, top: 24, bottom: 82, containLabel: true };
   if (horizontal) {
     option.xAxis = { type: "value", minInterval: 1, axisLabel: { color: "#91a2b1", fontSize: 9 }, splitLine: { lineStyle: { color: "rgba(145,162,177,.12)", type: "dashed" } } };
     option.yAxis = { type: "category", inverse: true, data: rows.map(x => x.name), axisLabel: { color: "#b7c3cc", fontSize: 9, width: 105, overflow: "truncate" }, axisLine: { show: false }, axisTick: { show: false } };
   } else {
     option.xAxis.data = rows.map(x => shortLabel(x.name, 13));
-    option.xAxis.axisLabel.rotate = rows.length > 6 ? 22 : 0;
+    option.xAxis.axisLabel.rotate = rows.length > 5 ? 38 : 0;
+    option.xAxis.axisLabel.fontSize = 9;
+    option.xAxis.axisLabel.interval = 0;
   }
   option.tooltip.formatter = params => `${params[0].name}<br/><b>${params[0].value}${suffix}</b>`;
   option.series = [{ type: "bar", data: rows.map(x => x.value), barMaxWidth: 28, itemStyle: { color, borderRadius: horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0] }, label: { show: true, position: horizontal ? "right" : "top", color: "#e6edf2", fontSize: 10, fontWeight: 700 } }];
@@ -48,7 +50,16 @@ function renderLateChart(items) {
   if (!chart) return;
   const sorted = [...items].sort((a,b) => (b.avgTime || 0) - (a.avgTime || 0));
   const el = document.getElementById("lateChart");
-  el.style.height = `${Math.max(145, sorted.length * 25 + 34)}px`;
+  if (!sorted.length) {
+    el.style.height = "150px";
+    chart.clear();
+    chart.setOption({
+      title: { text: "Tidak ada salesman terlambat", left: "center", top: "middle",
+        textStyle: { color: "#91a2b1", fontSize: 11, fontWeight: 500 } }
+    }, true);
+    return;
+  }
+  el.style.height = `${Math.max(150, sorted.length * 25 + 34)}px`;
   const option = baseOption();
   option.grid = { left: 118, right: 55, top: 7, bottom: 7, containLabel: true };
   option.xAxis = {
@@ -81,4 +92,4 @@ function renderDashboardCharts(data) {
   renderBar("pcChart", data.pc.slice(0, 10), "#b09be7", false, "%");
 }
 window.addEventListener("resize", () => Object.values(chartInstances).forEach(chart => chart.resize()));
-window.RouteCharts = { renderDashboardCharts };
+window.RouteCharts = { renderDashboardCharts, renderLateChart };

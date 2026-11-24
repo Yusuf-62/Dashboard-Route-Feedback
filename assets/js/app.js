@@ -94,22 +94,39 @@ function aggregate(rows) {
   const success = rows.filter(r => norm(r["Alasan 2"]) === "sukses");
   const failed = rows.filter(r => norm(r["Alasan 2"]) === "gagal");
 
-  // Satu catatan outlet pertama per salesman per hari.
-  const firstVisitRows = rows.filter(r => Number(r.Kunjungan) === 1);
-  const firstOutletSeconds = firstVisitRows.map(r => timeToSeconds(r["Waktu Mulai"])).filter(v => v != null);
-  const firstBySales = new Map();
-  firstVisitRows.forEach(r => {
+  // Ambil Waktu Mulai paling awal per Sales + Tanggal.
+  // Status 1st Outlet bisa berulang di setiap kunjungan, jadi hitung satu kali per hari.
+  const dailySales = new Map();
+  rows.forEach(r => {
     const sales = safe(r.Sales) || "(Kosong)";
     const dayKey = `${safe(r.Tanggal)}|${safe(r.Day)}`;
-    if (!firstBySales.has(sales)) firstBySales.set(sales, new Map());
-    firstBySales.get(sales).set(dayKey, r);
+    const key = `${sales}|||${dayKey}`;
+    if (!dailySales.has(key)) dailySales.set(key, { name: sales, rows: [] });
+    dailySales.get(key).rows.push(r);
   });
-  const lateSales = [...firstBySales.entries()].map(([name, dayMap]) => {
-    const visits = [...dayMap.values()];
-    const times = visits.map(r => timeToSeconds(r["Waktu Mulai"])).filter(v => v != null);
-    const lateCount = visits.filter(r => norm(r["Status 1st Outlet"]) === "terlambat").length;
-    return { name, avgTime: avg(times), lateCount };
-  }).filter(x => x.lateCount > 0).sort((a,b) => b.lateCount - a.lateCount || (b.avgTime || 0) - (a.avgTime || 0));
+  const dailyFirstOutlets = [...dailySales.values()].map(group => {
+    const first = group.rows
+      .map(r => ({ seconds: timeToSeconds(r["Waktu Mulai"]) }))
+      .filter(x => x.seconds != null)
+      .sort((a,b) => a.seconds - b.seconds)[0];
+    return {
+      name: group.name,
+      firstTime: first ? first.seconds : null,
+      isLate: group.rows.some(r => norm(r["Status 1st Outlet"]) === "terlambat")
+    };
+  });
+  const firstOutletSeconds = dailyFirstOutlets.map(x => x.firstTime).filter(v => v != null);
+  const bySalesLate = new Map();
+  dailyFirstOutlets.forEach(item => {
+    if (!bySalesLate.has(item.name)) bySalesLate.set(item.name, { name: item.name, times: [], lateCount: 0 });
+    const current = bySalesLate.get(item.name);
+    if (item.firstTime != null) current.times.push(item.firstTime);
+    if (item.isLate) current.lateCount += 1;
+  });
+  const lateSales = [...bySalesLate.values()].map(item => ({
+    name: item.name, avgTime: avg(item.times), lateCount: item.lateCount
+  })).filter(x => x.lateCount > 0)
+    .sort((a,b) => b.lateCount - a.lateCount || (b.avgTime || 0) - (a.avgTime || 0));
 
   const successfulDurations = success.map(r => timeToSeconds(r.Durasi)).filter(v => v != null);
   const successfulEC = success.map(r => number(r.EC)).filter(v => v != null);
@@ -149,15 +166,15 @@ function renderKPIs(rows) {
   $("kpiEffective").textContent = fmtNumber(a.effectiveCall);
   $("kpiSku").textContent = fmtNumber(a.sku);
   const selectedDayCount = state.selected.day.size;
-  const useList = selectedDayCount > 1 || (selectedDayCount === 0 && state.days.length > 1);
+  const useList = selectedDayCount > 1 || selectedDayCount === 0;
   if (useList) {
     $("lateChart").hidden = true;
     $("lateList").hidden = false;
     renderLateList(a.lateSales);
   } else {
-    $("lateChart").hidden = false;
     $("lateList").hidden = true;
-    window.RouteCharts.renderLateChart(a.lateSales);
+    $("lateChart").hidden = false;
+    requestAnimationFrame(() => window.RouteCharts.renderLateChart(a.lateSales));
   }
   window.RouteCharts.renderDashboardCharts(a);
 }
@@ -213,7 +230,6 @@ function bindUI() {
   $("tableSearch").addEventListener("input", renderTableRows);
   $("prevPage").addEventListener("click", () => { state.page--; renderTableRows(); });
   $("nextPage").addEventListener("click", () => { state.page++; renderTableRows(); });
-  $("refreshData").addEventListener("click", initDashboard);
   $("sidebarToggle").addEventListener("click", () => {
     if (window.matchMedia("(max-width: 850px)").matches) $("sidebar").classList.toggle("open");
     else document.body.classList.toggle("sidebar-hidden");
@@ -239,7 +255,6 @@ async function initDashboard() {
     buildFilterMenus();
     renderAll();
     $("connectionStatus").textContent = `${fmtNumber(state.allRows.length)} baris dimuat`;
-    $("lastUpdated").textContent = `Data diperbarui ${new Date().toLocaleString("id-ID")}`;
     if (result.failed.length) {
       $("statusBanner").hidden = false;
       $("statusBanner").textContent = `Sebagian file tidak berhasil dimuat: ${result.failed.join(" · ")}`;
