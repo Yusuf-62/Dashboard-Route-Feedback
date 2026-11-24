@@ -137,3 +137,22 @@ body.sidebar-hidden .main-content{margin-left:0}
   .chart-grid-top .chart-panel,.chart-grid-bottom .chart-panel{min-height:260px}
   .chart-main{height:210px;min-height:210px}
 }
+
+
+/* Loading-screen hotfix: persistent menu toggle after removing top header */
+.floating-sidebar-toggle{
+  position:fixed;
+  top:14px;
+  right:16px;
+  z-index:30;
+  width:34px;
+  height:34px;
+  background:#1a2935;
+  border-color:#354653;
+  color:#d9e3ea;
+  box-shadow:0 5px 18px rgba(0,0,0,.22);
+}
+.floating-sidebar-toggle:hover{border-color:rgba(212,154,103,.65);color:#f0bd91}
+@media(max-width:850px){
+  .floating-sidebar-toggle{top:12px;right:12px}
+}

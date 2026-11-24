@@ -221,26 +221,41 @@ function setView(view) {
   setTimeout(() => window.dispatchEvent(new Event("resize")), 60);
 }
 function bindUI() {
-  $("resetFilters").addEventListener("click", () => {
+  const on = (id, event, handler) => {
+    const element = $(id);
+    if (element) element.addEventListener(event, handler);
+  };
+
+  on("resetFilters", "click", () => {
     Object.values(state.selected).forEach(set => set.clear());
     document.querySelectorAll(".multi-menu input").forEach(input => input.checked = false);
     ["day","depo","sales","tipe"].forEach((key,i)=>updateTrigger(key,["Day","Depo","Sales","Tipe Sales"][i]));
     applyFilters();
   });
-  $("tableSearch").addEventListener("input", renderTableRows);
-  $("prevPage").addEventListener("click", () => { state.page--; renderTableRows(); });
-  $("nextPage").addEventListener("click", () => { state.page++; renderTableRows(); });
-  $("sidebarToggle").addEventListener("click", () => {
-    if (window.matchMedia("(max-width: 850px)").matches) $("sidebar").classList.toggle("open");
-    else document.body.classList.toggle("sidebar-hidden");
+
+  on("tableSearch", "input", renderTableRows);
+  on("prevPage", "click", () => { state.page--; renderTableRows(); });
+  on("nextPage", "click", () => { state.page++; renderTableRows(); });
+
+  on("sidebarToggle", "click", () => {
+    if (window.matchMedia("(max-width: 850px)").matches) {
+      $("sidebar")?.classList.toggle("open");
+    } else {
+      document.body.classList.toggle("sidebar-hidden");
+    }
   });
-  $("sidebarClose").addEventListener("click", () => {
-    if (window.matchMedia("(max-width: 850px)").matches) $("sidebar").classList.remove("open");
-    else document.body.classList.add("sidebar-hidden");
+
+  on("sidebarClose", "click", () => {
+    if (window.matchMedia("(max-width: 850px)").matches) {
+      $("sidebar")?.classList.remove("open");
+    } else {
+      document.body.classList.add("sidebar-hidden");
+    }
   });
+
   document.querySelectorAll(".nav-item").forEach(btn => btn.addEventListener("click", () => {
     setView(btn.dataset.view);
-    if (window.matchMedia("(max-width: 850px)").matches) $("sidebar").classList.remove("open");
+    if (window.matchMedia("(max-width: 850px)").matches) $("sidebar")?.classList.remove("open");
   }));
 }
 async function initDashboard() {
@@ -269,4 +284,10 @@ async function initDashboard() {
     if (window.lucide) lucide.createIcons();
   }
 }
-document.addEventListener("DOMContentLoaded", () => { bindUI(); initDashboard(); if (window.lucide) lucide.createIcons(); });
+document.addEventListener("DOMContentLoaded", () => {
+  try { bindUI(); } catch (error) { console.error("UI initialization error:", error); }
+  initDashboard();
+  if (window.lucide) {
+    try { lucide.createIcons(); } catch (error) { console.warn("Icon rendering skipped:", error); }
+  }
+});
