@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101820">
+  <title>Route Feedback | Kalimantan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><i data-lucide="route"></i></div>
+        <div><div class="brand-name">ROUTE<span>FEEDBACK</span></div><div class="brand-caption">KALIMANTAN REGION</div></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-heading">FILTER DATA <button class="text-button" id="resetFilters">Reset</button></div>
+        <div class="filter-block">
+          <label class="filter-label"><i data-lucide="calendar-days"></i> Hari (Day)</label>
+          <div class="multi-select" data-filter="day">
+            <button class="multi-trigger" type="button"><span class="trigger-text">Semua hari</span><i data-lucide="chevron-down"></i></button>
+            <div class="multi-menu"></div>
+          </div>
+        </div>
+        <div class="filter-block">
+          <label class="filter-label"><i data-lucide="warehouse"></i> Depo</label>
+          <div class="multi-select" data-filter="depo">
+            <button class="multi-trigger" type="button"><span class="trigger-text">Semua depo</span><i data-lucide="chevron-down"></i></button>
+            <div class="multi-menu"></div>
+          </div>
+        </div>
+        <div class="filter-block">
+          <label class="filter-label"><i data-lucide="users"></i> Sales</label>
+          <div class="multi-select" data-filter="sales">
+            <button class="multi-trigger" type="button"><span class="trigger-text">Semua sales</span><i data-lucide="chevron-down"></i></button>
+            <div class="multi-menu"></div>
+          </div>
+        </div>
+        <div class="filter-block">
+          <label class="filter-label"><i data-lucide="briefcase-business"></i> Tipe Sales</label>
+          <div class="multi-select" data-filter="tipe">
+            <button class="multi-trigger" type="button"><span class="trigger-text">Semua tipe sales</span><i data-lucide="chevron-down"></i></button>
+            <div class="multi-menu"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="connection-dot"></div>
+        <div><strong id="connectionStatus">Menghubungkan data</strong><small id="dataSourceLabel">GitHub · main/data</small></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="mobileMenu" aria-label="Buka menu"><i data-lucide="menu"></i></button>
+        <div class="page-heading">
+          <div class="eyebrow">BUSINESS INTELLIGENCE</div>
+          <h1>Dashboard <span>Route Feedback</span></h1>
+          <p>Monitoring aktivitas kunjungan dan performa salesman Kalimantan.</p>
+        </div>
+        <div class="topbar-right">
+          <div class="last-updated"><span class="live-dot"></span><span id="lastUpdated">Memuat data...</span></div>
+          <div class="logo-slot" title="Letakkan logo SNS di assets/img/logo-sns.png">
+            <img src="assets/img/logo-sns.png" alt="SNS" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
+            <span class="logo-fallback">SNS</span>
+          </div>
+          <button class="icon-button refresh-button" id="refreshData" aria-label="Muat ulang data"><i data-lucide="refresh-cw"></i></button>
+        </div>
+      </header>
+
+      <section class="content-wrap">
+        <div class="status-banner" id="statusBanner" hidden></div>
+        <div class="section-title-row">
+          <div><div class="eyebrow">OVERVIEW</div><h2>Ringkasan performa</h2></div>
+          <div class="active-filter-note" id="activeFilterNote">Semua data</div>
+        </div>
+
+        <section class="kpi-grid">
+          <article class="kpi-card"><div class="kpi-icon amber"><i data-lucide="clock-3"></i></div><div class="kpi-meta"><span>Avg 1st Outlet</span><strong id="kpiFirstOutlet">—</strong><small>Rata-rata waktu outlet pertama</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon blue"><i data-lucide="store"></i></div><div class="kpi-meta"><span>Jumlah JKS</span><strong id="kpiJks">—</strong><small>Count szCustId</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon violet"><i data-lucide="route"></i></div><div class="kpi-meta"><span>Out of Route</span><strong id="kpiOutRoute">—</strong><small>MAX(0, Average EC − Count szCustId)</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon green"><i data-lucide="timer"></i></div><div class="kpi-meta"><span>Durasi Kunjungan</span><strong id="kpiDuration">—</strong><small>Average Durasi · Sukses</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon green"><i data-lucide="badge-check"></i></div><div class="kpi-meta"><span>Sukses</span><strong id="kpiSuccess">—</strong><small>Alasan 2 = Sukses</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon rose"><i data-lucide="circle-x"></i></div><div class="kpi-meta"><span>Gagal</span><strong id="kpiFailed">—</strong><small>Alasan 2 = Gagal</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon orange"><i data-lucide="phone-call"></i></div><div class="kpi-meta"><span>Effective Call</span><strong id="kpiEffective">—</strong><small>Average EC · Sukses</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon cyan"><i data-lucide="package-check"></i></div><div class="kpi-meta"><span>SKU / Faktur</span><strong id="kpiSku">—</strong><small>Average SKU/faktur</small></div></article>
+        </section>
+
+        <section class="chart-grid chart-grid-top">
+          <article class="panel chart-panel"><div class="panel-heading"><div><span class="panel-kicker">FIRST OUTLET</span><h3>Salesman terlambat</h3></div><span class="panel-icon"><i data-lucide="alarm-clock"></i></span></div><div id="lateChart" class="chart chart-large"></div></article>
+          <article class="panel chart-panel"><div class="panel-heading"><div><span class="panel-kicker">ORDER PERFORMANCE</span><h3>Salesman gagal order terbanyak</h3></div><span class="panel-icon"><i data-lucide="trending-down"></i></span></div><div id="failedSalesChart" class="chart chart-large"></div></article>
+        </section>
+
+        <section class="chart-grid chart-grid-middle">
+          <article class="panel chart-panel"><div class="panel-heading"><div><span class="panel-kicker">VISIT QUALITY</span><h3>Durasi kunjungan kurang dari 2 menit</h3></div><span class="panel-icon"><i data-lucide="timer-reset"></i></span></div><div id="underTwoChart" class="chart chart-medium"></div></article>
+          <article class="panel chart-panel"><div class="panel-heading"><div><span class="panel-kicker">FAILURE REASONS</span><h3>Gagal order berdasarkan alasan</h3></div><span class="panel-icon"><i data-lucide="chart-no-axes-combined"></i></span></div><div id="reasonChart" class="chart chart-medium"></div></article>
+        </section>
+
+        <section class="chart-grid chart-grid-bottom">
+          <article class="panel chart-panel"><div class="panel-heading"><div><span class="panel-kicker">EFFECTIVE CALL</span><h3>Average EC per salesman</h3></div><span class="panel-icon"><i data-lucide="phone"></i></span></div><div id="effectiveChart" class="chart chart-medium"></div></article>
+          <article class="panel chart-panel"><div class="panel-heading"><div><span class="panel-kicker">PRODUCTIVITY</span><h3>EC vs PC berdasarkan tipe sales</h3></div><span class="panel-icon"><i data-lucide="chart-column"></i></span></div><div id="pcChart" class="chart chart-medium"></div></article>
+        </section>
+
+        <section class="panel table-panel">
+          <div class="panel-heading table-heading"><div><span class="panel-kicker">DETAIL DATA</span><h3>Rincian kunjungan</h3></div><div class="table-tools"><input id="tableSearch" type="search" placeholder="Cari sales, depo, customer..."><span id="rowCount">0 baris</span></div></div>
+          <div class="table-scroll"><table><thead><tr><th>Day</th><th>Depo</th><th>Sales</th><th>Customer</th><th>Waktu Mulai</th><th>Durasi</th><th>Alasan</th><th>Status</th><th>EC</th><th>%PC</th></tr></thead><tbody id="dataTableBody"><tr><td colspan="10" class="empty-cell">Memuat data...</td></tr></tbody></table></div>
+          <div class="table-footer"><span id="tablePageInfo">Menampilkan data</span><div><button class="pager-button" id="prevPage">Sebelumnya</button><button class="pager-button" id="nextPage">Berikutnya</button></div></div>
+        </section>
+        <footer class="footer"><span>Route Feedback · Kalimantan</span><span>Data bersumber dari Excel → JSON → GitHub</span></footer>
+      </section>
+    </main>
+  </div>
+  <div class="loading-screen" id="loadingScreen"><div class="loader-mark"><i data-lucide="route"></i></div><div class="loader-line"></div><strong>Menyiapkan dashboard</strong><span>Mengambil data Route Feedback...</span></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
